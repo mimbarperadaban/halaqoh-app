@@ -30,6 +30,9 @@
   .titik{display:flex;gap:7px;justify-content:center;margin-top:22px}
   .titik i{width:9px;height:9px;border-radius:50%;background:#fff;animation:loncat 1s ease-in-out infinite}
   .titik i:nth-child(2){animation-delay:.15s}.titik i:nth-child(3){animation-delay:.3s}
+  #pesan{display:none;max-width:420px;padding:0 24px;margin-top:18px;font-size:14px;line-height:1.5;animation:naik .4s both}
+  #pesan b{display:block;font-size:17px;margin-bottom:6px}
+  #pesan button{margin-top:14px;background:#fff;color:#0f766e;border:0;border-radius:12px;padding:11px 20px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit}
   @keyframes denyut{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
   @keyframes loncat{0%,80%,100%{transform:translateY(0);opacity:.5}40%{transform:translateY(-9px);opacity:1}}
   @keyframes naik{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
@@ -59,6 +62,7 @@
   <h1>Halaqah Qur'an</h1>
   <p>Absensi guru &amp; capaian hafalan santri</p>
   <div class="titik"><i></i><i></i><i></i></div>
+  <div id="pesan"></div>
 </div></div>
 
 <iframe id="app" title="Halaqah Qur'an" allow="clipboard-write"></iframe>
@@ -105,20 +109,53 @@ let appWin = null, appOrigin = null, pushToken = store.get('hq_push'), promptPas
 
 /* ---------- Muat app ---------- */
 const mulai = Date.now();
-$('app').addEventListener('load', () => setTimeout(() => $('splash').classList.add('hilang'), Math.max(0, 900 - (Date.now() - mulai))));
-$('app').src = C.EXEC_URL;
-setTimeout(() => $('splash').classList.add('hilang'), 12000);
+function pesan(judul, teks, ulang){
+  $('splash').classList.remove('hilang');
+  document.querySelector('.titik').style.display = 'none';
+  $('pesan').style.display = 'block';
+  $('pesan').innerHTML = '<b>' + judul + '</b>' + teks + (ulang ? '<br><button onclick="location.reload()">Coba lagi</button>' : '');
+}
+let termuat = false;
+if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(C.EXEC_URL || '')) {
+  pesan('Belum diatur', 'Isi EXEC_URL di file config.js dengan URL web app (berakhiran /exec).');
+} else if (!navigator.onLine) {
+  pesan('Tidak ada koneksi', 'Aplikasi butuh internet karena datanya langsung dari Google Sheet.', true);
+} else {
+  $('app').addEventListener('load', () => { termuat = true; setTimeout(() => $('splash').classList.add('hilang'), Math.max(300, 900 - (Date.now() - mulai))); });
+  $('app').src = C.EXEC_URL;
+  setTimeout(() => { if (!termuat) pesan('Masih memuat…', 'Koneksi lambat. Tunggu sebentar atau coba lagi.', true); }, 20000);
+}
 
 /* ---------- Jembatan dengan app Apps Script ---------- */
+// Bingkai Google berlapis, jadi pesan umum dikirim ke semua lapisan. Token login hanya ke bingkai app.
 const ORIGIN_APP = /^https:\/\/[a-z0-9.-]*script\.googleusercontent\.com$/;
-function kirim(m){ if (appWin) appWin.postMessage(m, appOrigin); }
+function kirim(m){
+  if (appWin) { try { appWin.postMessage(m, appOrigin); } catch(e){} return; }
+  (function post(w, d){ try { w.postMessage(m, '*'); } catch(e){} if (d > 3) return;
+    try { for (let i = 0; i < w.frames.length; i++) post(w.frames[i], d + 1); } catch(e){} })($('app').contentWindow, 0);
+}
+let appSiap = false;
 window.addEventListener('message', e => {
   if (!ORIGIN_APP.test(e.origin) || !e.data || !e.data.hq) return;
   appWin = e.source; appOrigin = e.origin;
   const d = e.data;
-  if (d.hq === 'ready') kirim({ hq: 'token', token: store.get('hq_token'), push: pushToken });
+  if (d.hq === 'ready') { appSiap = true; jaga(); e.source.postMessage({ hq: 'token', token: store.get('hq_token'), push: pushToken }, e.origin); }
   if (d.hq === 'save' && d.token) store.set('hq_token', d.token);
   if (d.hq === 'clear') store.del('hq_token');
+  if (d.hq === 'act' || d.hq === 'back-ok') { appSiap = true; jaga(); }
+  // 'back-home': sudah di halaman utama, Kembali berikutnya = keluar app
+});
+
+/* ---------- Tombol Kembali HP ----------
+ * Satu entri riwayat "penjaga" dipasang. Saat Kembali ditekan, app di dalam bingkai yang memutuskan:
+ * tutup panel notifikasi, kembali ke menu sebelumnya, atau (di menu utama) biarkan app keluar. */
+let dijaga = false;
+function jaga(){ if (!dijaga && history.pushState) { history.pushState({ hq: 'jaga' }, ''); dijaga = true; } }
+window.addEventListener('popstate', () => {
+  dijaga = false;
+  const bar = document.querySelector('.bar.tampil');
+  if (bar) { bar.classList.remove('tampil'); jaga(); return; }
+  if (appSiap) kirim({ hq: 'back' });
 });
 
 /* ---------- Service worker ---------- */
@@ -177,8 +214,8 @@ async function ambilTokenPush(){
 }
 
 /* ---------- Status koneksi ---------- */
-function cekKoneksi(){ $('offline').classList.toggle('tampil', !navigator.onLine); if (navigator.onLine && !$('app').src) $('app').src = C.EXEC_URL; }
-window.addEventListener('online', () => { cekKoneksi(); $('app').src = C.EXEC_URL; });
+function cekKoneksi(){ $('offline').classList.toggle('tampil', !navigator.onLine); }
+window.addEventListener('online', () => { cekKoneksi(); if (!termuat) location.reload(); });
 window.addEventListener('offline', cekKoneksi);
 cekKoneksi();
 </script>
