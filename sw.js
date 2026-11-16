@@ -1,7 +1,7 @@
 /* Service worker: cache tampilan dasar + terima notifikasi push (Firebase). */
 importScripts('config.js');
 const C = self.HQ_CONFIG || {};
-const CACHE = 'halaqah-v3';
+const CACHE = 'halaqah-v4';
 const SHELL = ['./', 'index.html', 'config.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/badge-72.png', 'icons/apple-touch-icon.png'];
 
