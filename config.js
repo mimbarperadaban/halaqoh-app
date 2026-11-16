@@ -1,7 +1,7 @@
 // ====== PENGATURAN APP TERPASANG (isi lalu upload ulang file ini) ======
 self.HQ_CONFIG = {
   // 1) URL Web App dari Apps Script (Deploy > Manage deployments), berakhiran /exec
-  EXEC_URL: 'https://script.google.com/macros/s/GANTI_DENGAN_ID_DEPLOYMENT/exec',
+  EXEC_URL: 'https://script.google.com/macros/s/AKfycbxcKX_jcqBXYqtKFR1XQ836hkVikgc_1I0nu4Mg6DvMPkyt1SeXdvcAeHEhC6qylvNNfg/exec',
 
   // 2) Opsional, untuk notifikasi push. Tempel dari Firebase Console:
   //    Project settings > General > Your apps > Web app > SDK setup and configuration > Config
